@@ -1,10 +1,9 @@
-import sys
 from model import *
 from data import *
 import matplotlib.pylab as plt
 
 
-def train(data):
+def train(data, split):
 
     N = len(data.team_codes)  # num teams
     # only used for matrix factorization algorithms
@@ -20,24 +19,31 @@ def train(data):
 
     NUM_ITS = 20
 
+    SEASONS_ARE_INDEPENDENT = True
+    seasons = ["2003", "2004", "2005", "2006", "2007", "2008", "2009",
+               "2010", "2011", "2012", "2013", "2014"]
     train_on_season, train_on_tourney, test_on_tourney = {}, {}, {}
 
-    for s, season in enumerate(data.seasons):
-        train_on_season[season] = True
-        train_on_tourney[season] = False
-        test_on_tourney[season] = True
-        print season, train_on_season[season], train_on_tourney[season], test_on_tourney[season]
+    for s, season in enumerate(seasons):
+        if SEASONS_ARE_INDEPENDENT and s != split:
+            train_on_season[season] = False
+            train_on_tourney[season] = False
+            test_on_tourney[season] = False
+        elif SEASONS_ARE_INDEPENDENT:
+            train_on_season[season] = True
+            train_on_tourney[season] = False
+            test_on_tourney[season] = True
+        else:
+            train_on_season[season] = True
+            if s == split:
+                train_on_tourney[season] = False
+                test_on_tourney[season] = True
+            else:
+                train_on_tourney[season] = True
+                test_on_tourney[season] = False
 
-    MODEL = "pmf"
-    if MODEL == "simplest":
-        BASE_LEARNING_RATE = .005
-        make_model_fn = make_simplest_learning_functions
-
-    elif MODEL == "pmf":  # probabilistic matrix factorization
-        BASE_LEARNING_RATE = .0025
-        make_model_fn = make_vanilla_pmf_functions
-
-    elif MODEL == "pmf_with_pace":
+    MODEL = "full"
+    if MODEL == "pmf_with_pace":
         BASE_LEARNING_RATE = .001
         make_model_fn = make_pmf_plus_pace_functions
 
@@ -154,7 +160,13 @@ def train(data):
 
 if __name__ == "__main__":
 
+    try:
+        splits = [int(sys.argv[1])]
+    except:
+        splits = [0, 1, 2, 3, 4]
+
     data = MarchMadnessData()
+    num_splits = len(splits)
     num_cols = 3
     for s, split in enumerate(splits):
         train_objs, sq_valid_errs, zero_one_valid_errs = train(data, split)
